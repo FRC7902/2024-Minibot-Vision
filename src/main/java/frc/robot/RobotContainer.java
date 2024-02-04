@@ -27,7 +27,7 @@ public class RobotContainer {
 
   private static final PhotonCamera camera = new PhotonCamera("Microsoft_LifeCam_HD-3000");
   private static final CameraSubsystem m_cameraSubsystem = new CameraSubsystem(camera);
-  private static final DriveSubsystem m_driveSubsystem = new DriveSubsystem();
+  private static final DriveSubsystem m_driveSubsystem = new DriveSubsystem(camera);
   private final XboxController m_driverController = new XboxController(OperatorConstants.kDriverControllerPort);
 
   public RobotContainer() {

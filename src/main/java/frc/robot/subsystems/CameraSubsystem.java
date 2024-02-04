@@ -8,9 +8,18 @@ import java.util.List;
 
 import org.photonvision.PhotonCamera;
 import org.photonvision.PhotonUtils;
+import org.photonvision.estimation.TargetModel;
+import org.photonvision.simulation.SimVisionSystem;
+import org.photonvision.simulation.VisionSystemSim;
+import org.photonvision.simulation.VisionTargetSim;
 import org.photonvision.targeting.PhotonPipelineResult;
 import org.photonvision.targeting.PhotonTrackedTarget;
 
+import edu.wpi.first.apriltag.AprilTagFieldLayout;
+import edu.wpi.first.apriltag.AprilTagFields;
+import edu.wpi.first.math.estimator.DifferentialDrivePoseEstimator;
+import edu.wpi.first.math.geometry.Pose3d;
+import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
@@ -20,7 +29,7 @@ public class CameraSubsystem extends SubsystemBase {
   public PhotonPipelineResult result;
   public final PhotonCamera m_camera;
   private final double CameraHeightMetres = 0.44;
-  private final double TargetHeightMetres = 1.35;
+  private final double TargetHeightMetres = 1.39;
   private final double CameraPitchRadians = 0.17;
   private double tagDistance = 0;
   private double tagAngle = 0;
@@ -31,14 +40,17 @@ public class CameraSubsystem extends SubsystemBase {
   double camDiagFOV = 68.5; // degrees - assume wide-angle camera
   double camPitch = 0.17; // degrees
   double camHeightOffGround = 0.44; // meters
-  double maxLEDRange = 20; // meters
+  double maxLEDRange = 2.2; // meters
   int camResolutionWidth = 1280; // pixels
   int camResolutionHeight = 720; // pixels
-  double minTargetArea = 10; // square pixels
-//test
+  double minTargetArea = 5806.08; // square pixels
+
+  Pose3d targetPose = new Pose3d(16, 4, 2, new Rotation3d(0, 0, Math.PI));
+  
   public CameraSubsystem(PhotonCamera camera) {
     m_camera = camera;
   }
+
 
   @Override
   public void periodic() {
