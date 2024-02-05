@@ -32,6 +32,8 @@ import edu.wpi.first.networktables.DoubleArrayEntry;
 import edu.wpi.first.networktables.DoubleArrayTopic;
 import edu.wpi.first.wpilibj.AnalogGyro;
 import edu.wpi.first.wpilibj.Encoder;
+import edu.wpi.first.wpilibj.RobotController;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.simulation.AnalogGyroSim;
 import edu.wpi.first.wpilibj.simulation.DifferentialDrivetrainSim;
@@ -138,7 +140,9 @@ public class DriveSubsystem extends SubsystemBase {
 
   @Override
   public void periodic() {
-
+    updateOdometry();
+    m_fieldSim.setRobotPose(m_drivetrainSimulator.getPose());
+    m_fieldApproximation.setRobotPose(m_poseEstimator.getEstimatedPosition());
     //m_leftEncoderObj.set(m_leftEncoder.getPosition());
     //m_rightEncoderObj.set(m_rightEncoder.getPosition());
 
@@ -153,7 +157,14 @@ public class DriveSubsystem extends SubsystemBase {
 
     // This method will be called once per scheduler run during simulation
     //connect the motors to update the drivetrain
-    
+    m_drivetrainSimulator.setInputs(m_leftA.get() * RobotController.getInputVoltage(), m_rightA.get() * RobotController.getInputVoltage());
+    m_drivetrainSimulator.update(0.02);
+
+    m_leftEncoderSim.setDistance(m_drivetrainSimulator.getLeftPositionMeters());
+    m_leftEncoderSim.setRate(m_drivetrainSimulator.getLeftVelocityMetersPerSecond());
+    m_rightEncoderSim.setDistance(m_drivetrainSimulator.getRightPositionMeters());
+    m_rightEncoderSim.setRate(m_drivetrainSimulator.getRightVelocityMetersPerSecond());
+    m_gyroSim.setAngle(-m_drivetrainSimulator.getHeading().getDegrees());
   }
 
   public void publishCameraToObject(Pose3d objectInField, Transform3d robotToCamera, DoubleArrayEntry cameraToObjectEntry, DifferentialDrivetrainSim drivetrainSimulator){
@@ -188,7 +199,8 @@ public class DriveSubsystem extends SubsystemBase {
     m_poseEstimator.update(m_gyro.getRotation2d(), m_leftEncoder.getPosition(), m_rightEncoder.getPosition());
     publishCameraToObject(m_objectInField, m_robotToCamera, m_cameraToObjectEntry, m_drivetrainSimulator);
     Pose3d visionMeasurement3d = objectToRobotPose(m_objectInField, m_robotToCamera, m_cameraToObjectEntry);
-    
+    Pose2d visionMeasurement2d = visionMeasurement3d.toPose2d();
+    m_poseEstimator.addVisionMeasurement(visionMeasurement2d, Timer.getFPGATimestamp());
   }
 
   public void driveArcade(double xForward, double zRotation){

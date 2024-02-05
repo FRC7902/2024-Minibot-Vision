@@ -29,8 +29,8 @@ public final class Constants {
         public static class DriveConstants{
 
                 public static final double speedMultiplier = 1;
-                public static final int[] LeftMotorCAN = {13, 14};
-                public static final int[] RightMotorCAN = {11, 12};
+                public static final int[] LeftMotorCAN = {31, 32};
+                public static final int[] RightMotorCAN = {33, 34};
 
                 public static final int GyroCAN = 1;
                 public static final int PigeonCAN = 30;
