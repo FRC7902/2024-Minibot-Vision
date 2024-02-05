@@ -7,12 +7,8 @@ package frc.robot;
 import frc.robot.Constants.DriveConstants;
 import frc.robot.Constants.IOConstants;
 import frc.robot.Constants.OperatorConstants;
-import frc.robot.commands.DriveShape;
-import frc.robot.commands.driveShape2;
-import frc.robot.commands.DriveToDistance;
 import frc.robot.commands.DriveToDistanceSimple;
 import frc.robot.commands.TurnToAngle;
-import frc.robot.commands.TurnToAngleSimple;
 import frc.robot.commands.TurnToTarget;
 import frc.robot.subsystems.CameraSubsystem;
 import frc.robot.subsystems.DriveSubsystem;
@@ -25,7 +21,7 @@ import edu.wpi.first.wpilibj2.command.button.JoystickButton;
 
 public class RobotContainer {
 
-  private static final PhotonCamera camera = new PhotonCamera("Microsoft_LifeCam_HD-3000");
+  private static final PhotonCamera camera = new PhotonCamera("FirebirdsCamera");
   private static final CameraSubsystem m_cameraSubsystem = new CameraSubsystem(camera);
   private static final DriveSubsystem m_driveSubsystem = new DriveSubsystem(camera);
   private final XboxController m_driverController = new XboxController(OperatorConstants.kDriverControllerPort);

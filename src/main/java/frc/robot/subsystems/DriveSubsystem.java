@@ -4,6 +4,8 @@
 
 package frc.robot.subsystems;
 
+import java.util.List;
+
 import org.photonvision.PhotonCamera;
 import com.ctre.phoenix.sensors.PigeonIMU;
 import com.revrobotics.CANSparkMax;
@@ -38,9 +40,13 @@ import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.simulation.AnalogGyroSim;
 import edu.wpi.first.wpilibj.simulation.DifferentialDrivetrainSim;
 import edu.wpi.first.wpilibj.simulation.EncoderSim;
+import edu.wpi.first.wpilibj.simulation.DifferentialDrivetrainSim.KitbotGearing;
+import edu.wpi.first.wpilibj.simulation.DifferentialDrivetrainSim.KitbotMotor;
+import edu.wpi.first.wpilibj.simulation.DifferentialDrivetrainSim.KitbotWheelSize;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.robot.Constants;
 import frc.robot.Constants.DriveConstants;
 
 public class DriveSubsystem extends SubsystemBase {
@@ -61,58 +67,38 @@ public class DriveSubsystem extends SubsystemBase {
   private final AnalogGyro m_gyro = new AnalogGyro(DriveConstants.GyroCAN);
   private final PigeonIMU m_pigeon = new PigeonIMU(DriveConstants.PigeonCAN);
 
-  private final PIDController m_leftPIDController = new PIDController(1, 0, 0);
-  private final PIDController m_rightPIDController = new PIDController(1, 0, 0);
-
   private final DifferentialDriveKinematics m_kinematics = new DifferentialDriveKinematics(DriveConstants.kTrackWidth);
-  private final Pose3d m_objectInField;
 
-  private final Transform3d m_robotToCamera = new Transform3d(new Translation3d(0, 0, 0), new Rotation3d(0, 0, Math.PI));
-  
-  private final DoubleArrayEntry m_cameraToObjectEntry;
 
-  private final double[] m_defaultVal = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-
-  private final Field2d m_fieldSim = new Field2d();
-  private final Field2d m_fieldApproximation = new Field2d();
-
-  private final DifferentialDrivePoseEstimator m_poseEstimator = 
-    new DifferentialDrivePoseEstimator(
-      m_kinematics, 
-      Rotation2d.fromDegrees(m_pigeon.getYaw()), 
+  private final DifferentialDrivePoseEstimator m_poseEstimator = new DifferentialDrivePoseEstimator(
+      m_kinematics,
+      Rotation2d.fromDegrees(m_pigeon.getYaw()),
       m_leftEncoder.getPosition(),
       m_rightEncoder.getPosition(),
       new Pose2d(),
       VecBuilder.fill(0.05, 0.05, Units.degreesToRadians(5)),
-      VecBuilder.fill(0.5, 0.5, Units.degreesToRadians(30))
-      );
+      VecBuilder.fill(0.5, 0.5, Units.degreesToRadians(30)));
 
   private final AnalogGyroSim m_gyroSim = new AnalogGyroSim(m_gyro);
   private final EncoderSim m_leftEncoderSim = new EncoderSim(m_leftEncoderObj);
   private final EncoderSim m_rightEncoderSim = new EncoderSim(m_rightEncoderObj);
-  private final LinearSystem <N2, N2, N2> m_drivetrainSystem = 
-    LinearSystemId.identifyDrivetrainSystem(1.98, 0.2, 1.5, 0.3);
-  private final DifferentialDrivetrainSim m_drivetrainSimulator = 
-    new DifferentialDrivetrainSim(
-      m_drivetrainSystem,
-      DCMotor.getCIM(2),
-      8,
-      DriveConstants.kTrackWidth,
-      DriveConstants.kWheelRadius,
-      null
-    );
+
+  private final DifferentialDrivetrainSim m_drivetrainSimulator = DifferentialDrivetrainSim
+      .createKitbotSim(KitbotMotor.kDualCIMPerSide, KitbotGearing.k10p71, KitbotWheelSize.kSixInch, null);
 
   private PhotonCamera m_camera;
 
   /** Creates a new DriveSubsystem. */
-  public DriveSubsystem(PhotonCamera camera, DoubleArrayTopic cameraToObjectTopic) {
+  public DriveSubsystem(PhotonCamera camera) {
     m_leftB.follow(m_leftA);
     m_rightB.follow(m_leftA);
 
     m_camera = camera;
 
-    m_leftEncoder.setPositionConversionFactor(-1 * DriveConstants.gearRatio * DriveConstants.WheelDiameterMeters * Math.PI / DriveConstants.kEncoderResolution);
-    m_rightEncoder.setPositionConversionFactor(DriveConstants.gearRatio * DriveConstants.WheelDiameterMeters * Math.PI / DriveConstants.kEncoderResolution);
+    m_leftEncoder.setPositionConversionFactor(-1 * DriveConstants.gearRatio * DriveConstants.WheelDiameterMeters
+        * Math.PI / DriveConstants.kEncoderResolution);
+    m_rightEncoder.setPositionConversionFactor(
+        DriveConstants.gearRatio * DriveConstants.WheelDiameterMeters * Math.PI / DriveConstants.kEncoderResolution);
 
     m_leftEncoder.setPosition(0);
     m_rightEncoder.setPosition(0);
@@ -127,28 +113,21 @@ public class DriveSubsystem extends SubsystemBase {
     m_rightA.setSmartCurrentLimit(45);
     m_rightB.setSmartCurrentLimit(45);
 
-    m_cameraToObjectEntry = cameraToObjectTopic.getEntry(m_defaultVal);
-
-    m_objectInField = AprilTagFields.k2024Crescendo.loadAprilTagLayoutField().getTagPose(0).get();
-
-    SmartDashboard.putData("Field", m_fieldSim);
-    SmartDashboard.putData("FieldEstimation", m_fieldApproximation);
-        
-//----------------------------------------------------------------------------------------
+    // ----------------------------------------------------------------------------------------
 
   }
 
   @Override
   public void periodic() {
-    updateOdometry();
-    m_fieldSim.setRobotPose(m_drivetrainSimulator.getPose());
-    m_fieldApproximation.setRobotPose(m_poseEstimator.getEstimatedPosition());
-    //m_leftEncoderObj.set(m_leftEncoder.getPosition());
-    //m_rightEncoderObj.set(m_rightEncoder.getPosition());
-
+    update(m_leftEncoder.getPosition(), m_rightEncoder.getPosition());
+    // m_leftEncoderObj.set(m_leftEncoder.getPosition());
+    // m_rightEncoderObj.set(m_rightEncoder.getPosition());
 
     SmartDashboard.putNumber("Encoder dist", m_rightEncoder.getPosition());
     SmartDashboard.putNumber("yaw", m_pigeon.getYaw());
+    SmartDashboard.putNumber("Estimated X", m_poseEstimator.getEstimatedPosition().getX());
+    SmartDashboard.putNumber("Estimated Y", m_poseEstimator.getEstimatedPosition().getY());
+    SmartDashboard.putNumber("Estimated Rotation", m_poseEstimator.getEstimatedPosition().getRotation().getDegrees());
 
   }
 
@@ -156,8 +135,9 @@ public class DriveSubsystem extends SubsystemBase {
   public void simulationPeriodic() {
 
     // This method will be called once per scheduler run during simulation
-    //connect the motors to update the drivetrain
-    m_drivetrainSimulator.setInputs(m_leftA.get() * RobotController.getInputVoltage(), m_rightA.get() * RobotController.getInputVoltage());
+    // connect the motors to update the drivetrain
+    m_drivetrainSimulator.setInputs(m_leftA.get() * RobotController.getInputVoltage(),
+        m_rightA.get() * RobotController.getInputVoltage());
     m_drivetrainSimulator.update(0.02);
 
     m_leftEncoderSim.setDistance(m_drivetrainSimulator.getLeftPositionMeters());
@@ -167,66 +147,42 @@ public class DriveSubsystem extends SubsystemBase {
     m_gyroSim.setAngle(-m_drivetrainSimulator.getHeading().getDegrees());
   }
 
-  public void publishCameraToObject(Pose3d objectInField, Transform3d robotToCamera, DoubleArrayEntry cameraToObjectEntry, DifferentialDrivetrainSim drivetrainSimulator){
-    Pose3d robotInField = new Pose3d(drivetrainSimulator.getPose());
-    Pose3d cameraInField = robotInField.plus(robotToCamera);
-    Transform3d cameraToObject = new Transform3d(cameraInField, objectInField);
+  public void update(double leftDist, double rightDist) {
+    m_poseEstimator.update(Rotation2d.fromDegrees(m_pigeon.getYaw()), leftDist, rightDist);
 
-    double [] val = {
-      cameraToObject.getX(),
-      cameraToObject.getY(),
-      cameraToObject.getZ(),
-      cameraToObject.getRotation().getQuaternion().getW(),
-      cameraToObject.getRotation().getQuaternion().getX(),
-      cameraToObject.getRotation().getQuaternion().getY(),
-      cameraToObject.getRotation().getQuaternion().getZ(),
-    };
+    var res = m_camera.getLatestResult();
+    if (res.hasTargets()) {
+      var imageCaptureTime = res.getTimestampSeconds();
+      var camToTargetTrans = res.getBestTarget().getBestCameraToTarget();
+      var camPose = AprilTagFields.k2024Crescendo.loadAprilTagLayoutField().getTagPose(res.getBestTarget().getFiducialId()).get().transformBy(camToTargetTrans.inverse());
 
-    cameraToObjectEntry.set(val);
-
+      m_poseEstimator.addVisionMeasurement(camPose.toPose2d(), imageCaptureTime);
+    }
   }
 
-  public Pose3d objectToRobotPose(Pose3d objectInField, Transform3d robotToCamera, DoubleArrayEntry cameraToObjectEntry){
-    double[] val = cameraToObjectEntry.get();
-    Translation3d translation = new Translation3d(val[0], val[1], val[2]);
-    Rotation3d rotation = new Rotation3d(new Quaternion(val[3], val[4], val[5], val[6]));
-    Transform3d cameraToObject = new Transform3d(translation, rotation);
-
-    return ComputerVisionUtil.objectToRobotPose(objectInField, cameraToObject, robotToCamera);
-  }
-
-  public void updateOdometry(){
-    m_poseEstimator.update(m_gyro.getRotation2d(), m_leftEncoder.getPosition(), m_rightEncoder.getPosition());
-    publishCameraToObject(m_objectInField, m_robotToCamera, m_cameraToObjectEntry, m_drivetrainSimulator);
-    Pose3d visionMeasurement3d = objectToRobotPose(m_objectInField, m_robotToCamera, m_cameraToObjectEntry);
-    Pose2d visionMeasurement2d = visionMeasurement3d.toPose2d();
-    m_poseEstimator.addVisionMeasurement(visionMeasurement2d, Timer.getFPGATimestamp());
-  }
-
-  public void driveArcade(double xForward, double zRotation){
+  public void driveArcade(double xForward, double zRotation) {
     m_drive.arcadeDrive(xForward, zRotation);
   }
 
-  public void driveRaw(double power){
+  public void driveRaw(double power) {
     m_leftA.set(power);
     m_rightA.set(power);
   }
 
-  public double getHeading(){//-180,180
+  public double getHeading() {// -180,180
     return Math.IEEEremainder(m_pigeon.getYaw(), 360);
   }
 
-
-  public double getPosition(){
+  public double getPosition() {
     return m_rightEncoder.getPosition();
   }
 
-  public void turn(double power){
+  public void turn(double power) {
     m_leftA.set(power);
     m_rightA.set(-power);
   }
 
-  public double modAngle(double angle){
+  public double modAngle(double angle) {
     return Math.IEEEremainder(angle, 360);
   }
 
