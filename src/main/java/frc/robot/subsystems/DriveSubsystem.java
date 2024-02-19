@@ -55,7 +55,6 @@ public class DriveSubsystem extends SubsystemBase {
 
   public DriveSubsystem(PhotonCamera camera) {
     m_camera = camera;
-    
     //Configure the motor settings
     m_leftB.follow(m_leftA);
     m_rightB.follow(m_leftA);
@@ -107,6 +106,9 @@ public class DriveSubsystem extends SubsystemBase {
       var imageCaptureTime = res.getTimestampSeconds();
       var camToTargetTrans = res.getBestTarget().getBestCameraToTarget();
       var camPose = AprilTagFields.k2024Crescendo.loadAprilTagLayoutField().getTagPose(res.getBestTarget().getFiducialId()).get().transformBy(camToTargetTrans.inverse());
+      SmartDashboard.putNumber("cam to target X", camToTargetTrans.getX());
+      SmartDashboard.putNumber("cam to target Y", camToTargetTrans.getY());
+      SmartDashboard.putNumber("cam to target Z", camToTargetTrans.getZ());
 
       m_poseEstimator.addVisionMeasurement(camPose.toPose2d(), imageCaptureTime);
     }
